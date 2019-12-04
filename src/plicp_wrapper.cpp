@@ -2,27 +2,37 @@
 
 namespace icp_tools
 {
-Plicp::Plicp(ros::NodeHandle nh): nh_(nh)
+Plicp::Plicp(lcm::LCM* plcm): pLCM(plcm)
 {
-    ROS_INFO("Starting LaserScanMatcher");
+    std::cout << "Starting LaserScanMatcher" << std::endl;
+    // 接受激光数据
+    pLCM->subscribe("lidar_scan", &Plicp::lcmScanCallback, this);
     init();
 }
 
 Plicp::~Plicp()
 { 
-  ROS_INFO("Destroying PlicpWrapper");
+  std::cout << "Destroying PlicpWrapper" << std::endl;
 }
 
 void Plicp::init()
 {
-    // 接受激光数据
-    scan_subsciber_ =  nh_.subscribe("/scan", 1, &Plicp::scanCallback, this);
-    // lcm->subscribe("lidar_scan", &Plicp::lcmScanCallback, this);
+    filename_ =  "/home/yifan/data.txt";
 
+    // 数据
+    // 打开保存的文件
+    ofile_.open(filename_.c_str());
+    if (!ofile_)
+    {
+        std::cout << "Fail to open file!" << std::endl;
+        return;
+    }
+    else
+        ofile_ << "delta_x , delta_y, delta_theta, timeStamp" << std::endl;
     // Init parameters
-    max_iterations_ = 10;
-    max_correspondence_dist_ = 0.3;
-    max_angular_correction_deg_= 45.0;
+    max_iterations_ =  30;
+    max_correspondence_dist_ = 0.1;
+    max_angular_correction_deg_= 100.0;
     max_linear_correction_ = 0.5;
     epsilon_xy_ = 0.000001;
     epsilon_theta_ = 0.000001;
@@ -85,40 +95,55 @@ void Plicp::set_params()
     input_.use_sigma_weights = use_sigma_weights_;
 }
 
-void Plicp::scanCallback(const sensor_msgs::LaserScan::ConstPtr& msgs)
+void Plicp::lcmScanCallback(const lcm::ReceiveBuffer *rbuf, 
+                                                            const std::string &channel, 
+                                                            const lcm_visualization_msgs::Marker *pLidarScan)
 {
-    std::cout << "Get Scan Message" << std::endl;
-    if (!initialized_)
-    {
-        createCache(msgs);    // caches the sin and cos of all angles
-        laserScanToLDP(msgs, prev_ldp_scan_);
-        last_icp_time_ = msgs->header.stamp;
-        initialized_ = true;
-    }
-
+  if (!initialized_)
+  {
+    laserScanToLDP(pLidarScan, prev_ldp_scan_);
+    last_icp_time_ = pLidarScan->header.stamp;
+    initialized_ = true;
+  }
+  else
+  {
     LDP curr_ldp_scan;
-    laserScanToLDP(msgs, curr_ldp_scan);
-    processScan(curr_ldp_scan, msgs->header.stamp);
+    laserScanToLDP(pLidarScan, curr_ldp_scan);
+    processScan(curr_ldp_scan, pLidarScan->header.stamp);
+  }
+  if (output_.valid)
+  {
+      // std::cout << "save data" << std::endl;
+      ofile_ << output_.x[0] << ", " 
+                  << output_.x[1] << ", "
+                  << output_.x[2] << ", "
+                  <<  curTime << std::endl;
+  }
 }
 
-void Plicp::laserScanToLDP(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
-                                            LDP& ldp)
+void Plicp::laserScanToLDP(const lcm_visualization_msgs::Marker *pLidarScan, LDP& ldp)
 {
-  unsigned int n = scan_msg->ranges.size();
+  size_t n = pLidarScan->points.size();
+  std::cout << "number of points: " << n << std::endl;
   ldp = ld_alloc_new(n);
 
-  for (unsigned int i = 0; i < n; i++)
+  double min_theta = DBL_MAX, max_theta = DBL_MIN;
+  for (size_t i = 0; i < n; ++i)
   {
     // calculate position in laser frame
-
-    double r = scan_msg->ranges[i];
-
-    if (r > scan_msg->range_min && r < scan_msg->range_max)
+    double x = pLidarScan->points[i].x;
+    double y = pLidarScan->points[i].y;
+    double range = std::sqrt(std::pow(x, 2) + std::pow(y, 2));
+    double theta = std::atan2(y, x);
+    if (range > min_reading_ && range < max_reading_)
     {
       // fill in laser scan data
-
       ldp->valid[i] = 1;
-      ldp->readings[i] = r;
+      ldp->readings[i] = range;
+      ldp->theta[i] = theta;
+      ldp->true_pose[0] = x;
+      ldp->true_pose[1] = y;
+      ldp->true_pose[2] = 0.0f;
     }
     else
     {
@@ -126,39 +151,26 @@ void Plicp::laserScanToLDP(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
       ldp->readings[i] = -1;  // for invalid range
     }
 
-    ldp->theta[i]    = scan_msg->angle_min + i * scan_msg->angle_increment;
-
     ldp->cluster[i]  = -1;
+    if (min_theta > theta)
+      min_theta = theta;
+    if (max_theta < theta)
+      max_theta = theta;
   }
-  ldp->min_theta = ldp->theta[0];
-  ldp->max_theta = ldp->theta[n-1];
+
+  ldp->min_theta = min_theta;
+  ldp->max_theta = max_theta;
 
   ldp->odometry[0] = 0.0;
   ldp->odometry[1] = 0.0;
   ldp->odometry[2] = 0.0;
 
-  ldp->true_pose[0] = 0.0;
-  ldp->true_pose[1] = 0.0;
-  ldp->true_pose[2] = 0.0;
+  ldp->estimate[0] = 0.0;
+  ldp->estimate[1] = 0.0;
+  ldp->estimate[2] = 0.0;
 }
 
-void Plicp::createCache (const sensor_msgs::LaserScan::ConstPtr& scan_msg)
-{
-  a_cos_.clear();
-  a_sin_.clear();
-
-  for (unsigned int i = 0; i < scan_msg->ranges.size(); ++i)
-  {
-    double angle = scan_msg->angle_min + i * scan_msg->angle_increment;
-    a_cos_.push_back(cos(angle));
-    a_sin_.push_back(sin(angle));
-  }
-  
-  input_.min_reading = scan_msg->range_min;
-  input_.max_reading = scan_msg->range_max;
-}
-
-void Plicp::processScan(LDP& curr_ldp_scan, const ros::Time& time)
+void Plicp::processScan(LDP& curr_ldp_scan, const lcm_std_msgs::Time time)
 {
     curTime = time;
 
@@ -181,13 +193,13 @@ void Plicp::processScan(LDP& curr_ldp_scan, const ros::Time& time)
     prev_ldp_scan_->true_pose[1] = 0.0;
     prev_ldp_scan_->true_pose[2] = 0.0;
 
-    input_.laser_ref  = prev_ldp_scan_;
-    input_.laser_sens = curr_ldp_scan;
-
     // first_guess 为 [0, 0, 0]
     input_.first_guess[0] = prev_ldp_scan_->true_pose[0];
     input_.first_guess[1] = prev_ldp_scan_->true_pose[1];
     input_.first_guess[2] = prev_ldp_scan_->true_pose[2];
+
+    input_.laser_ref  = prev_ldp_scan_;
+    input_.laser_sens = curr_ldp_scan;
 
     sm_icp(&input_, &output_);
 }

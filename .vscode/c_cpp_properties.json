@@ -4,7 +4,9 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/yifan/catkin_ws/src/lcm2ros/include"
+                "/home/yifan/catkin_ws/src/lcm2ros/include",
+                "/home/yifan/cleanRobot/thirdparty/include",
+                "/home/yifan/cleanRobot/thirdparty/include/lcm_msgs"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

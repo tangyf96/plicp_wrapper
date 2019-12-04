@@ -10,27 +10,27 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
 )
 find_package(Eigen3)
+find_package(lcm REQUIRED)
 set (csm_LIBRARY_DIRS /home/yifan/calibration/csm/lib)
 set (csm_INCLUDE_DIRS /home/yifan/calibration/csm/include)
 set (csm_INCLUDE_DIRS2 /home/yifan/calibration/csm/src)
 
-message("csm_include" ${csm_INCLUDE_DIRS})
-
 ###########
 ## Build ##
 ###########
-# set(Thirdparty_DIR $ENV{HOME}/cleanRobot/thirdparty)
-# set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${Thirdparty_DIR}/CMakeModules")
-
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11 -Wno-deprecated-declarations")
+set(Thirdparty_DIR /home/yifan/cleanRobot/thirdparty/include)
+set(lcmmsgs_DIR ${Thirdparty_DIR}/lcm_msgs)
 
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${Eigen3_INCLUDE_DIRS}
   ${csm_INCLUDE_DIRS}
   ${csm_INCLUDE_DIRS2}
+  ${Thirdparty_DIR}
+  ${lcmmsgs_DIR}
   include
 )
+message("lcm" ${lcm})
 
 set(SOURCES  src/plicp_node.cpp src/plicp_wrapper.cpp)
 
@@ -39,5 +39,7 @@ add_executable(plicp_node ${SOURCES})
 target_link_libraries(plicp_node
   ${catkin_LIBRARIES}
   ${Eigen3_LIBRARIES}
+  ${LCM_LIBRARY}
+  lcm
   ${csm_LIBRARY_DIRS}/libcsm_eigen.a 
 )

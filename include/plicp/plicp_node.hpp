@@ -6,7 +6,13 @@
 #include <csm/csm_all.h>  // csm defines min and max, but Eigen complains
 
 #include <lcm/lcm-cpp.hpp>
+#include <lcm_ros/time.h>
+#include <lcm_ros/transform_datatypes.h>
+#include <lcm_nav_msgs/Path.hpp>
+#include <lcm_nav_msgs/OccupancyGrid.hpp>
+#include <lcm_visualization_msgs/Marker.hpp>
 
+#include <math.h>
 #include <fstream>
 #include <vector>
 
@@ -17,34 +23,34 @@ class Plicp
 {
     public:
         Plicp();
-        Plicp(ros::NodeHandle nh);
+        Plicp(lcm::LCM* plcm);
         ~Plicp();
         
         void init();
-        void processScan(LDP& curr_ldp_scan, const ros::Time& time);
-        void laserScanToLDP(const sensor_msgs::LaserScan::ConstPtr& scan_msg,
-                                            LDP& ldp);
-        void scanCallback(const sensor_msgs::LaserScan::ConstPtr& msgs);
-        void createCache (const sensor_msgs::LaserScan::ConstPtr& scan_msg);
+        void processScan(LDP& curr_ldp_scan, const lcm_std_msgs::Time stamp);
         void set_params();
+        void lcmScanCallback(const lcm::ReceiveBuffer *rbuf, 
+                                                            const std::string &channel, 
+                                                            const lcm_visualization_msgs::Marker *pLidarScan);
+        void laserScanToLDP(const lcm_visualization_msgs::Marker *pLidarScan, LDP& ldp);
 
     public:
         sm_result output_;
-        ros::Time curTime;
+        lcm_std_msgs::Time curTime;
 
     private:
-        // ros
-        ros::NodeHandle nh_;
-        ros::Subscriber scan_subsciber_;
-        ros::Time last_icp_time_;
+        std::ofstream ofile_;
+        std::string filename_;
+        // lcm
+        lcm::LCM* pLCM;
+        lcm_std_msgs::Time last_icp_time_;
+        double min_reading_ = 0.0001;
+        double max_reading_ =  10.0;
 
         // csm
         sm_params input_;
         LDP prev_ldp_scan_;
-
-        std::vector<double> a_cos_;
-        std::vector<double> a_sin_;
-
+        
         // PLICP parameters
         int max_iterations_;
         double max_correspondence_dist_ ;
