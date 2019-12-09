@@ -8,9 +8,6 @@ int main(int argc, char** argv)
         return 1;
     
     icp_tools::Plicp plicp_handle(&lcm);
-    while(true)
-    {
-        
-    }
+    while(0 <= lcm.handleTimeout(1000));
     return 0;
 }

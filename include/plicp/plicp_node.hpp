@@ -10,6 +10,7 @@
 #include <lcm_ros/transform_datatypes.h>
 #include <lcm_nav_msgs/Path.hpp>
 #include <lcm_nav_msgs/OccupancyGrid.hpp>
+#include <lcm_nav_msgs/Odometry.hpp>  //话题robot_pose_icp, odom_cali数据
 #include <lcm_visualization_msgs/Marker.hpp>
 
 #include <math.h>
@@ -33,13 +34,14 @@ class Plicp
                                                             const std::string &channel, 
                                                             const lcm_visualization_msgs::Marker *pLidarScan);
         void laserScanToLDP(const lcm_visualization_msgs::Marker *pLidarScan, LDP& ldp);
-
+        void handleOdom(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const lcm_nav_msgs::Odometry* odom_cali);
     public:
         sm_result output_;
         lcm_std_msgs::Time curTime;
 
     private:
         std::ofstream ofile_;
+        std::ofstream odomFile_;
         std::string filename_;
         // lcm
         lcm::LCM* pLCM;
