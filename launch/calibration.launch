@@ -1,6 +1,0 @@
-<launch>
-  <node pkg="plicp" type="plicp_node"
-    name="plicp_node" output="screen" launch-prefix="xterm -e gdb -ex run --args ">
-  </node>
-
-</launch>

@@ -1,8 +1,6 @@
 #ifndef PLICP_NODE_HPP
 #define PLICP_NODE_HPP
 
-#include <ros/ros.h>
-#include <sensor_msgs/LaserScan.h>
 #include <csm/csm_all.h>  // csm defines min and max, but Eigen complains
 
 #include <lcm/lcm-cpp.hpp>
@@ -16,6 +14,10 @@
 #include <math.h>
 #include <fstream>
 #include <vector>
+#include <algorithm> 
+#include <mutex>
+#include <thread>
+#include <eigen3/Eigen/Core>
 
 namespace icp_tools
 {
@@ -35,14 +37,29 @@ class Plicp
                                                             const lcm_visualization_msgs::Marker *pLidarScan);
         void laserScanToLDP(const lcm_visualization_msgs::Marker *pLidarScan, LDP& ldp);
         void handleOdom(const lcm::ReceiveBuffer* rbuf, const std::string& channel, const lcm_nav_msgs::Odometry* odom_cali);
+        void set_first_guess(sm_params* params);
+
+        bool valid_odometry(const double* delta_odom);
+        void copy_d(const double*from, int n, double*to);
+
+
     public:
         sm_result output_;
         lcm_std_msgs::Time curTime;
+        int cnt_ = 0;
 
     private:
         std::ofstream ofile_;
         std::ofstream odomFile_;
+        std::ofstream ofileRef_;
+        std::ofstream ofileMov_;
         std::string filename_;
+        std::mutex mutexOdom_;
+        bool initOdom_ = true;
+        double max_rotation_deg_;
+        double odom_laser_T[3];
+        Eigen::Matrix3d T_odom_laser;
+
         // lcm
         lcm::LCM* pLCM;
         lcm_std_msgs::Time last_icp_time_;
@@ -52,7 +69,9 @@ class Plicp
         // csm
         sm_params input_;
         LDP prev_ldp_scan_;
-        
+        double last_trans_[3];
+        double last_odom_[3];
+
         // PLICP parameters
         int max_iterations_;
         double max_correspondence_dist_ ;
@@ -61,6 +80,7 @@ class Plicp
         double epsilon_xy_;
         double epsilon_theta_;
         double outliers_maxPerc_ ;
+
         // Advanced parameters
         double sigma_;
         int use_corr_tricks_;
