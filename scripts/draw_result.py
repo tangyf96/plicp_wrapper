@@ -37,13 +37,10 @@ class displayPath:
                     dx = float(array[0])
                     dy = float(array[1])
                     dtheta = float(array[2])
-                    print("dTheta")
-                    print(dtheta)
+
                     deltaT = self.rotationMatrix(dx, dy, dtheta)
                     
                     curT = self.prevT.dot(deltaT)
-                    print("curT")
-                    print(curT)
 
                     rotT = np.dot(self.offsetT, curT)
                     self.x.append(curT[0,2])

@@ -11,27 +11,24 @@ class DrawIteration():
         self.pre = pre
 
     def read_data_ref(self, data_file):
-        gp_ref_x = []
-        gp_ref_y = []
+        ref_x = []
+        ref_y = []
         with open(data_file, 'r') as infile:
                 for line in infile:
                     pose = [ float(i) for i in line.split()]
-                    gp_ref_x.append(pose[0])
-                    gp_ref_y.append(pose[1])
-        return gp_ref_x, gp_ref_y
+                    ref_x.append(pose[0])
+                    ref_y.append(pose[1])
+        return ref_x, ref_y
 
     def run(self):
         # open result file
         with open(self.filename, "r") as infile:
             find_new_time = False
-            ref_x = []
-            ref_y = []
             points_x = []
             points_y = []
             ind1 = []
             ind2 = []
             num_laser_points = 0
-            time_stamp = 0
             itr_num = 0
             cur_num = 0
             for line in infile:
@@ -46,11 +43,21 @@ class DrawIteration():
                 else:
                     # Update the timestamp and iteration number
                     if cur_num is 0:
-                        time_stamp = float(line.split("-", 4)[1])
+                        time_stamp = line.split("-", 4)[1]
                         itr_num = int(line.split("-", 4)[-1])
-                        # open reference data
-                        ref_file_name  = self.pre + "ref-" + str(time_stamp) + ".txt"
-                        ref_x, ref_y = self.read_data_ref(ref_file_name)
+                        if itr_num is 0:
+                            # open reference data
+                            ref_file_name  = self.pre + "ref-" + time_stamp + ".txt"
+                            ref_x, ref_y = self.read_data_ref(ref_file_name)
+                            sen_file_name = self.pre + "sen-" + time_stamp + ".txt"
+                            sen_x, sen_y = self.read_data_ref(sen_file_name)
+
+                            fig = plt.figure(1)
+                            plt.plot(ref_x, ref_y, 'r.')
+                            plt.plot(sen_x, sen_y, 'g.')
+                            title = "ref-sen-" + time_stamp
+                            plt.title(title)
+                            plt.show()
                     else:
                         # read the next num lines as laser_sens
                         array  = line.split(" ", 5)
@@ -69,7 +76,7 @@ class DrawIteration():
                         if cur_num == num_laser_points:
                             find_new_time = False
                             # 显示当前帧的correspondence
-                            self.display_correspondence(ref_x, ref_y, points_x, points_y, ind1, ind2, time_stamp, itr_num)
+                            # self.display_correspondence(ref_x, ref_y, points_x, points_y, ind1, ind2, time_stamp, itr_num)
                         # end if
                     # end if
                     cur_num += 1
@@ -100,7 +107,7 @@ class DrawIteration():
                                                 axesA=ax1, axesB=ax2, linestyle='--', color='k')
                 ax1.add_artist(con)
 
-        title = "correspondence time: " + str(time_stamp) + "iteration: " + str(itr_num)
+        title = "correspondence time: " +time_stamp + "iteration: " + str(itr_num)
         plt.title(title)
         plt.xlim((-3.0, 1.5))
         plt.ylim((-2.0, 2.0))
