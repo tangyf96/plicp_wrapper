@@ -95,8 +95,8 @@ int icp_loop(struct sm_params*params, const double*q0, double*x_new,
 			std::cout << "num " << laser_sens->nrays << std::endl;
 			std::cout <<  "sen-" << params->timeStamp << "-iter-" << iteration << std::endl;
 			for (int i=0; i<laser_sens->nrays; ++i) {
-				double d1 = params->laser_sens->points[i].p[0];
-				double d2 = params->laser_sens->points[i].p[1];
+				double d1 = params->laser_sens->points_w[i].p[0];
+				double d2 = params->laser_sens->points_w[i].p[1];
 				std::cout << d1 << " " << d2 <<  " " << params->laser_sens->corr[i].j1 << " " << params->laser_sens->corr[i].j2 << " " << params->laser_sens->valid[i]  <<  std::endl;
 			}
         }

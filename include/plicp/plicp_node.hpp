@@ -45,20 +45,17 @@ class Plicp
 
     public:
         sm_result output_;
-        lcm_std_msgs::Time curTime;
         int cnt_ = 0;
 
     private:
         std::ofstream ofile_;
         std::ofstream odomFile_;
-        std::ofstream ofileRef_;
-        std::ofstream ofileMov_;
-        std::string filename_;
+        std::ifstream inOdomFile_;
         std::mutex mutexOdom_;
         bool initOdom_ = true;
         double max_rotation_deg_;
         double odom_laser_T[3];
-        Eigen::Matrix3d T_odom_laser;
+        Eigen::Matrix3d T_odom_laser_;
 
         // lcm
         lcm::LCM* pLCM;

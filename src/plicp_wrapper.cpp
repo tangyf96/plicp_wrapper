@@ -23,11 +23,11 @@ Plicp::~Plicp()
 
 void Plicp::init()
 {
-  filename_ =  "/home/yifan/calibration/plicp/result/data.txt";
+  std::string output_file =  "/home/yifan/calibration/plicp/result/data.txt";
   std::string odomfile = "/home/yifan/calibration/plicp/result/odom.txt";
   // 数据
   // 打开保存的文件
-  ofile_.open(filename_.c_str());
+  ofile_.open(output_file.c_str());
   if (!ofile_)
   {
       std::cout << "Fail to open file!" << std::endl;
@@ -45,6 +45,13 @@ void Plicp::init()
   else
     odomFile_ << "delta_x , delta_y, delta_theta, timeStamp, error" << std::endl;
 
+  inOdomFile_.open("/home/yifan/calibration/plicp/data/f_trfm_odom.txt");
+  if (!inOdomFile_.good())
+  {
+    std::cout << "Fail to open input odom data" << std::endl;
+    return;
+  }
+
   // Init parameters
   max_iterations_ =  30;
   max_correspondence_dist_ = 0.1; // 0.1
@@ -59,7 +66,7 @@ void Plicp::init()
   use_corr_tricks_ = 0;
   restart_ = 1;
   restart_threshold_mean_error_ = 0.02;
-  restart_dt_ = 0.5;
+  restart_dt_ = 0.02;
   restart_dtheta_ = 0.1;
   clustering_threshold_ = 0.25;
   orientation_neighbourhood_ = 10;
@@ -82,9 +89,9 @@ void Plicp::init()
   // 外参 
   odom_laser_T[0] = 0.051;
   odom_laser_T[1] = 0.0f;
-  odom_laser_T[2] = deg2rad(-135); // -118
+  odom_laser_T[2] = deg2rad(-118); // -118
   // 创建旋转矩阵 (laser坐标系中的点 投影到 odom坐标系中的点)
-  T_odom_laser << std::cos(odom_laser_T[2]), -std::sin(odom_laser_T[2]) , odom_laser_T[0],
+  T_odom_laser_ << std::cos(odom_laser_T[2]), -std::sin(odom_laser_T[2]) , odom_laser_T[0],
                                        std::sin(odom_laser_T[2]), std::cos(odom_laser_T[2]), odom_laser_T[1],
                                        0, 0, 1;
   max_rotation_deg_ = M_PI/6.0f;
@@ -151,7 +158,7 @@ void Plicp::lcmScanCallback(const lcm::ReceiveBuffer *rbuf,
     ofile_ << output_.x[0] << ", " 
                 << output_.x[1] << ", "
                 << output_.x[2] << ", "
-                <<  curTime << ", " 
+                <<  pLidarScan->header.stamp << ", " 
                 << output_.error << std::endl;
     copy_d(output_.x, 3, last_trans_);
   }
@@ -209,7 +216,6 @@ void Plicp::laserScanToLDP(const lcm_visualization_msgs::Marker *pLidarScan, LDP
 
 void Plicp::processScan(LDP& curr_ldp_scan, const lcm_std_msgs::Time time)
 {
-  curTime = time;
 
   // CSM is used in the following way:
   // The scans are always in the laser frame
@@ -276,25 +282,47 @@ void Plicp::set_first_guess(sm_params* params)
   LDP laser_ref  = params->laser_ref;
   LDP laser_sens = params->laser_sens;
 
-  unique_lock<mutex> locker(mutexOdom_) ;
-  double init_guess[3];
-  /// 修改: 如果里程估计出错（如传感器数据发生突变），直接用上一次的角度估计
-  if (valid_odometry(last_odom_))
+  // read cnt_ odometry data from file
+  std::string line;
+  double odom_dx, odom_dy, odom_dtheta, timestamp;
+  if (cnt_ == 1)
   {
-    copy_d(last_odom_, 3, init_guess);
-    // std::cout << "Use initial guess" << last_odom_[0] << ", " << last_odom_[1] << "," << last_odom_[2] << std::endl;
+    std::getline(inOdomFile_, line);
+    std::getline(inOdomFile_, line); // Read the second line
   }
-  else
-    copy_d(last_trans_, 2, init_guess);
-  // 旋转到laserFrame (逆时针旋转90°)
+  else if (cnt_ > 1)
+    std::getline(inOdomFile_, line);
+  
+  std::istringstream ss(line);
+  string value;
+  ss >> value;
+  odom_dx = std::stod(value);
+
+  ss >> value;
+  odom_dy = std::stod(value);
+
+  ss >> value;
+  odom_dtheta = std::stod(value);
+
+  ss >> value;
+  timestamp = std::stod(value);
+
+
   Vector3d odom_guess;
-  odom_guess << 0.02f, 0.00f, 1.0f;
+  odom_guess << odom_dx, odom_dy, odom_dtheta;
+  std::cout << "odom guess:\n " << odom_guess  << std::endl;
+  Eigen::Matrix3d T_odom1_odom2; // transformation from new odom frame to previous odom frame
+  T_odom1_odom2 << std::cos(odom_guess[2]), -std::sin(odom_guess[2]), odom_guess[0],
+                                              std::sin(odom_guess[2]), std::cos(odom_guess[2]), odom_guess[1],
+                                              0, 0, 1;
+                        
   // 转换到laser frame
-  Vector3d laser_guess = (T_odom_laser.inverse() * odom_guess).transpose() * T_odom_laser;
-  params->first_guess[0] = laser_guess[0];
-  params->first_guess[1] = laser_guess[1];
-  params->first_guess[2] = 0.0f;
-  std::cout << "first guess:\n " << laser_guess << std::endl;
+  Eigen::Matrix3d T_laser1_laser2; // transformation from new laser frame to previous laser frame
+  T_laser1_laser2 = T_odom_laser_.inverse() * T_odom1_odom2 * T_odom_laser_;
+  params->first_guess[0] = T_laser1_laser2(0, 2);
+  params->first_guess[1] = T_laser1_laser2(1, 2);
+  params->first_guess[2] = odom_dtheta;
+  std::cout << "first guess:\n " << params->first_guess[0] << ", " << params->first_guess[1] << ", " << params->first_guess[2] << std::endl;
 }
 
 bool Plicp::valid_odometry(const double* delta_odom)

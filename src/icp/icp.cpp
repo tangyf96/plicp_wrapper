@@ -87,7 +87,7 @@ void sm_icp(struct sm_params*params, struct sm_result*res) {
 	int nvalid;
 	if(!icp_loop(params, x_old->data(), x_new->data(), &error, &nvalid, &iterations)) {
 		sm_error("icp: ICP failed for some reason. \n");
-		res->valid = 0;
+		res->valid = 0; 
 		res->iterations = iterations;
 		res->nvalid = 0;
 	} else {
