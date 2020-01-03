@@ -10,7 +10,7 @@ import numpy as np
 
 class displayPath:
     def __init__(self, filename, filename2, filename3):
-        self.filename = filename
+        self.filename = filename 
         self.odom_filename = filename2
         self.result_file = filename3
 
@@ -66,7 +66,7 @@ class displayPath:
                     self.prevT = curT
                 lidar_cnt = lidar_cnt + 1
         
-        # 计算odom数据的轨迹
+        # 根据odom数据计算轨迹
         with open(self.odom_filename, 'r') as file:
             odom_cnt = 0
             for line in file.readlines():
@@ -89,6 +89,7 @@ class displayPath:
                     break
 
     def display(self):
+        # 显示轨迹结果
         plt.plot(self.laser_x, self.laser_y, 'b.-')
         plt.plot(self.odom_x, self.odom_y, 'r.-')
         plt.plot(0, 0, 'ro')
@@ -100,6 +101,7 @@ class displayPath:
         plt.show()
 
     def save_laser_delta_data(self):
+        # 保存laser_scan的里程计帧间的位移数据
         output_file = open(self.result_file, 'w')
         for i in range(len(self.delta_laser_x)):
             output_str = str(self.delta_laser_x[i]) + " " + str(self.delta_laser_y[i]) + " " + str(self.timestamp[i]) + "\n"
