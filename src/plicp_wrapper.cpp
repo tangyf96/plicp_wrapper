@@ -12,7 +12,6 @@ Plicp::Plicp(lcm::LCM* plcm) : pLCM(plcm)
   pLCM->subscribe("lidar_scan", &Plicp::lcmScanCallback, this);
   pLCM->subscribe("odom_cali", &Plicp::handleOdom, this);
 
-  std::cout << "init subscriber" << std::endl;
   init();
 }
 
@@ -272,10 +271,7 @@ void Plicp::handleOdom(const lcm::ReceiveBuffer* rbuf,
   last_odom_[1] = dY;
   last_odom_[2] = dYaw;
   if (initOdom_)
-  {
-    std::cout << "Get first odom message!" << std::endl;
     initOdom_ = false;
-  }
 }
 
 /// 修改: 设置初始估计，减少迭代次数
