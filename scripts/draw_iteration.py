@@ -24,7 +24,9 @@ class DrawIteration():
         '''
         读取result.txt文件，并且画出plicp匹配结果
         '''
+        # 只画指定帧的数据 (时间戳)
         target_time = 9181.671471548
+
         # open result file
         with open(self.filename, "r") as infile:
             find_new_time = False
@@ -71,8 +73,10 @@ class DrawIteration():
                     else:
                         # read the next num lines as laser_sens
                         array  = line.split(" ", 5)
+                        
                         x_world = float(array[0])
                         y_world = float(array[1])
+                        # 上一帧的匹配索引
                         match_ind1 = int(array[2])
                         match_ind2 = int(array[3])
 
@@ -119,23 +123,26 @@ class DrawIteration():
         ax2 = fig.add_subplot(122)
         ax1 = fig.add_subplot(121)
 
-        ax1.plot(ref_x, ref_y, '.r')  # 显示reference scan
+        ax1.plot(ref_x, ref_y, '.r')  # 显示上一帧
+
 
         cnt = 0
         corr_cnt = 0
         for i in range(len(points_x)):
-            ax2.plot(points_x[i], points_y[i], '.g')  # 显示measurement scan
+            ax2.plot(points_x[i], points_y[i], '.g')  # 显示当前帧的数据
             if ind1[i] == -1 or ind2[i] == -1:
                 continue
             # if i % 10 == 0: # 只选取一部分显示匹配，防止过多看不清
             else:
                 corr_cnt += 1
+                # 上一帧数据中匹配点1
                 ref_point = (ref_x[ind1[i]], ref_y[ind1[i]])
                 sen_p = (points_x[i], points_y[i])
                 con = ConnectionPatch(xyA=ref_point, xyB=sen_p, coordsA="data", coordsB="data",
                                                                 axesA=ax1, axesB=ax2, linestyle='--', color='blue')
                 ax1.add_artist(con)
 
+                # 上一帧数据中匹配点2
                 ref_point = (ref_x[ind2[i]], ref_y[ind2[i]])
                 con = ConnectionPatch(xyA=ref_point, xyB=sen_p, coordsA="data", coordsB="data",
                                                 axesA=ax1, axesB=ax2, linestyle='--', color='k')

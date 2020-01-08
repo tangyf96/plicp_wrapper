@@ -51,14 +51,15 @@ class displayPath:
                     time = float(array[3])
                     print("laser frame data {t}, {x}, {y}, {theta}".format(t=time, x=dx, y=dy, theta=dtheta))
                     # laser frame transformation
-                    deltaT_laser = self.rotationMatrix(dx, dy, dtheta)
+                    deltaT_laser = self.rotationMatrix(dx, dy, dtheta) #激光坐标系下的帧间变换
                     # odom frame transformation
-                    T_odom = np.dot(self.T_laser_to_odom, np.dot(deltaT_laser, np.linalg.inv(self.T_laser_to_odom)))
+                    T_odom = np.dot(self.T_laser_to_odom, np.dot(deltaT_laser, np.linalg.inv(self.T_laser_to_odom))) # odom坐标系的帧间变换
                     # world frame transformation
-                    curT = self.prevT.dot(T_odom)
+                    curT = self.prevT.dot(T_odom) # 机器人世界坐标
                     
-                    self.laser_x.append(curT[0,2])
-                    self.laser_y.append(curT[1,2])
+                    self.laser_x.append(curT[0,2]) # 激光数据得到的x
+                    self.laser_y.append(curT[1,2]) # 激光数据得到的y
+                    # odom 坐标系下的帧间变换 输出
                     self.delta_laser_x.append(T_odom[0][2])
                     self.delta_laser_y.append(T_odom[1][2])
                     print("world frame data ({x}, {y})".format(x=self.laser_x[-1], y=self.laser_y[-1]))
@@ -80,9 +81,9 @@ class displayPath:
                     dy = float(array[1])
                     dtheta = float(array[2])
                     deltaT = self.rotationMatrix(dx, dy, dtheta)
-                    curT = self.prevT.dot(deltaT)
-                    self.odom_x.append(curT[0,2])
-                    self.odom_y.append(curT[1,2])
+                    curT = self.prevT.dot(deltaT) #计算当前机器人世界坐标
+                    self.odom_x.append(curT[0,2]) # x
+                    self.odom_y.append(curT[1,2]) # y
                     self.prevT = curT
                 odom_cnt = odom_cnt + 1
                 if odom_cnt > lidar_cnt:
@@ -108,8 +109,11 @@ class displayPath:
             output_file.write(output_str)
 
 def main():
-    filename = "/home/yifan/calibration/plicp/result/data.txt"
+    # 这个是plicp_wrapper输出的激光帧间变换
+    filename = "/home/yifan/calibration/plicp/result/data.txt" # dx, dy, dtheta
+    # odom帧间变换
     filename2 = "/home/yifan/calibration/plicp/data/f_trfm_odom.txt"
+    # 保存激光数据得到odom坐标系下的帧间变换
     filename3 = "/home/yifan/calibration/plicp/result/delta_laser.txt"
 
     handle = displayPath(filename, filename2, filename3)

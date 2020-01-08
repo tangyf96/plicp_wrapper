@@ -23,8 +23,8 @@ Plicp::~Plicp()
 
 void Plicp::init()
 {
-  std::string output_file =  "/home/yifan/calibration/plicp/result/data.txt";
-  std::string odomfile = "/home/yifan/calibration/plicp/result/odom.txt";
+  std::string output_file =  "/home/yifan/calibration/plicp/result/data.txt"; // 保存激光帧间数据结果
+  std::string odomfile = "/home/yifan/calibration/plicp/result/odom.txt"; // 从lcm读取odom数据，并保存
   // 数据
   // 打开保存的文件
   ofile_.open(output_file.c_str());
@@ -52,6 +52,7 @@ void Plicp::init()
     return;
   }
 
+  // 参数说明：http://wiki.ros.org/laser_scan_matcher
   // Init parameters
   max_iterations_ =  30;
   max_correspondence_dist_ = 0.1; // 0.1
@@ -86,7 +87,7 @@ void Plicp::init()
   // set params for input
   set_params();
 
-  // 外参 
+  // 外参  (从odom移动到laser的外参)
   odom_laser_T[0] = 0.051;
   odom_laser_T[1] = 0.0f;
   odom_laser_T[2] = deg2rad(-118); // -118
@@ -241,6 +242,7 @@ void Plicp::processScan(LDP& curr_ldp_scan, const lcm_std_msgs::Time time)
   set_first_guess(&input_);
   input_.icp_iteration_visible = true;
   input_.timeStamp = time;
+  // 调用plicp源文件
   sm_icp(&input_, &output_);
 }
 
